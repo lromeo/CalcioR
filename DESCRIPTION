@@ -1,0 +1,11 @@
+Package: CalcioR
+Type: Package
+Title: Analyze historical and infer future Serie A soccer (calcio) results
+Version: 0.1.0
+Author: Luke Romeo
+Description: This package uses Elo ratings to track Serie A soccer teams over time and predict future results based on current ratings.
+Encoding: UTF-8
+LazyData: true
+Depends: dplyr,
+    RSQLite
+Imports: purrr
