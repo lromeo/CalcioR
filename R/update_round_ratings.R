@@ -149,22 +149,11 @@ update_round_ratings <- R6::R6Class(
 
         update_all_seasons = function() {
             purrr::walk(seq(nrow(foo$data)), self$update_season)
+            season <- foo$data
+            save(season, file = "data/season.rData")
         }
 
     )
 )
 
 
-# library(ggplot2)
-# tmp <- foo$data$ratings %>%
-#     purrr::map_df( ~ .x %>%
-#                        rename(data = match_day) %>%
-#                        mutate(match_day = 1:nrow(.)) %>%
-#                        filter(match_day != 39) %>%
-#                        tidyr::unnest(),
-#                    .id = "season") %>%
-#     filter(!is.na(r))
-#
-# ggplot(tmp, aes(x = match_day, y = r)) +
-#     geom_line(aes(color = p_team)) +
-#     facet_grid(. ~ season)
