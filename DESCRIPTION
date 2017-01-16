@@ -9,3 +9,6 @@ LazyData: true
 Depends: dplyr,
     RSQLite
 Imports: purrr
+Suggests: knitr,
+    rmarkdown
+VignetteBuilder: knitr

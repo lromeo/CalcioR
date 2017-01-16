@@ -1,0 +1,32 @@
+---
+title: "Seria A Elo Ratings"
+author: "Luke Romeo"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+
+```{r, fig.width=8, fig.height=7, echo=FALSE, message=FALSE, warning=FALSE}
+library(ggplot2)
+library(dplyr)
+devtools::load_all(".")
+
+plot_data <- season$ratings %>%
+    purrr::map_df( ~ .x %>%
+                       rename(data = match_day) %>%
+                       mutate(match_day = 1:nrow(.)) %>%
+                       filter(match_day != 39) %>%
+                       tidyr::unnest(),
+                   .id = "season") %>%
+    filter(!is.na(r))
+
+ggplot(plot_data, aes(x = match_day, y = r)) +
+    geom_line(aes(color = p_team)) +
+    facet_grid(. ~ season)
+
+```
