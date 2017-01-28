@@ -141,21 +141,11 @@ ratings <- R6::R6Class(
                     ~ if(.x == self$match_day) match_day_ratings_update else .y))
         },
 
-        find_max_match_day = function() {
-            self$data$results[[self$season]] %>%
-                mutate(match_complete =
-                           purrr::map_dbl(data, ~ sum(!is.na(.x$p_score)))) %>%
-                filter(match_complete >=
-                           nrow(self$data$teams[[self$season]]) - 2) %>%
-                .$match_day %>%
-                max()
-        },
-
         update_season = function(season) {
             self$season <- season
             self$initialize_season_ratings()
-            max_match_day <- self$find_max_match_day()
-            purrr::walk(seq(max_match_day), self$update_match_day)
+            matches <- seq(self$data$match_days_complete[self$season])
+            purrr::walk(matches, self$update_match_day)
         },
 
         update_all_seasons = function() {

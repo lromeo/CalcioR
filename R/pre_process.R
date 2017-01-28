@@ -3,6 +3,7 @@ library(stringr)
 library(purrr)
 library(RSQLite)
 
+
 load_table <- function(table_name, con) {
     "SELECT * FROM %s" %>%
         sprintf(table_name) %>%
@@ -62,6 +63,14 @@ format_season_results <- function(season_results) {
                                           purrr::flatten_df() %>%
                                           distinct(p_team)))
     }
+    find_max_match_day = function(results, n_teams = 20, max_missing = 2) {
+        results %>%
+            mutate(match_complete =
+                       purrr::map_dbl(data, ~ sum(!is.na(.x$p_score)))) %>%
+            filter(match_complete >= n_teams - max_missing) %>%
+            .$match_day %>%
+            max()
+    }
 
     season_results %>%
         mutate(
@@ -73,6 +82,8 @@ format_season_results <- function(season_results) {
         tidyr::nest(-season, -match_day, .key = "data") %>%
         tidyr::nest(-season, .key = "results") %>%
         distinct_season_teams() %>%
+        mutate(match_days_complete =
+                   purrr::map_dbl(results, find_max_match_day)) %>%
         arrange(season)
 }
 
