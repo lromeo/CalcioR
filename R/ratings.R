@@ -1,0 +1,171 @@
+
+calc_w_e = function(p_r0, o_r0, p_home, home_r_adv = 100) {
+    home_advantage <- ifelse(is.na(p_home), 0,
+                             ifelse(p_home, home_r_adv, -home_r_adv))
+    r_diff <- (p_r0 + home_advantage) - (o_r0)
+    w_e <- 1/(10^(-r_diff/400) + 1)
+    return(w_e)
+}
+r_update = function(p_r0, o_r0, p_score, o_score, p_home, k = 20) {
+    w_e <- calc_w_e(p_r0, o_r0, p_home)
+    w <- ifelse(p_score > o_score, 1,
+                ifelse(p_score == o_score, 0.5, 0))
+    score_diff <- abs(p_score - o_score)
+    g <- ifelse(score_diff < 2, 1,
+                ifelse(score_diff == 2, 1.5,
+                       (11 + score_diff)/8))
+    p_r1 <- p_r0 + k*g*(w - w_e)
+    return(p_r1)
+}
+
+ratings <- R6::R6Class(
+    "ratings",
+    public =  list(
+        initialize = function(season_results) {
+            self$data <- season_results
+        },
+
+        data = NA,
+        season = NA,
+        match_day = NA,
+        after_season_revert = 0.25,
+
+        initialize_na_ratings = function() {
+
+            by_match_day = function(teams) {
+                mutate(teams, r = NA_real_)
+            }
+            by_season <- function(results, teams) {
+                mutate(results,
+                       data = purrr::rerun(nrow(results), by_match_day(teams)))
+            }
+
+            self$data <- self$data %>%
+                mutate(ratings = purrr::map2(results, teams, by_season))
+        },
+
+        teams_start_1 = function() {
+            mutate(self$data$teams[[self$season]], r = 1500)
+        },
+        teams_start = function() {
+
+            last_season_end <- self$data$ratings[[self$season - 1]] %>%
+                filter(match_day == max(match_day)) %>%
+                tidyr::unnest(data) %>%
+                select(p_team, r) %>%
+                mutate(r = r + (1500 - r) * self$after_season_revert)
+
+            this_season <- self$data$teams[[self$season]]
+
+            new_teams <- this_season %>%
+                anti_join(last_season_end, by = "p_team")
+            dropped_teams <- last_season_end %>%
+                anti_join(this_season, by = "p_team")
+
+            new_teams_start <- new_teams %>%
+                mutate(r = mean(dropped_teams$r))
+            return_teams_start <- last_season_end %>%
+                semi_join(this_season, by = "p_team")
+
+            bind_rows(new_teams_start,return_teams_start)
+        },
+
+        find_previous_r = function(l) {
+
+            self$data$ratings[[self$season]] %>%
+                filter(match_day == self$match_day - 1) %>%
+                tidyr::unnest(data) %>%
+                filter(p_team == l$p_team) %>%
+                .$r
+        },
+        find_previous_r_o = function(l) {
+
+            l$p_team <- self$data$results[[self$season]] %>%
+                filter(match_day == self$match_day) %>%
+                tidyr::unnest(data) %>%
+                filter(p_team == l$p_team) %>%
+                .$o_team
+            self$find_previous_r(l)
+        },
+
+        find_team_results = function(l) {
+
+            self$data$results[[self$season]] %>%
+                filter(match_day == self$match_day) %>%
+                tidyr::unnest(data) %>%
+                filter(p_team == l$p_team)
+        },
+
+        initialize_season_ratings = function() {
+            if(self$season == 1) {
+                teams_start <- self$teams_start_1()
+            } else {
+                teams_start <- self$teams_start()
+            }
+            self$data$ratings[[self$season]] <-
+                bind_rows(
+                    self$data$ratings[[self$season]],
+                    tibble(match_day = 0, data = list(teams_start)))
+        },
+
+        update_team = function(team_data) {
+            p_r0 <- self$find_previous_r(team_data)
+            o_r0 <- self$find_previous_r_o(team_data)
+            team_results <- self$find_team_results(team_data)
+
+            if(is.na(team_results$p_score)) {
+                r_updated <- p_r0
+            } else {
+                r_updated = r_update(p_r0, o_r0, team_results$p_score,
+                                     team_results$o_score, team_results$p_home)
+            }
+            team_data %>% mutate(r = r_updated)
+        },
+
+        update_match_day = function(match_day) {
+
+            self$match_day <- match_day
+            match_day_ratings <- self$data$ratings[[self$season]] %>%
+                filter(match_day == self$match_day) %>%
+                tidyr::unnest(data)
+
+            match_day_ratings_update <- match_day_ratings %>%
+                group_by(p_team) %>%
+                do(self$update_team(.)) %>%
+                select(-match_day) %>%
+                ungroup()
+
+            self$data$ratings[[self$season]] <- self$data$ratings[[self$season]] %>%
+                mutate(data = purrr::map2(
+                    match_day, data,
+                    ~ if(.x == self$match_day) match_day_ratings_update else .y))
+        },
+
+        find_max_match_day = function() {
+            self$data$results[[self$season]] %>%
+                mutate(match_complete =
+                           purrr::map_dbl(data, ~ sum(!is.na(.x$p_score)))) %>%
+                filter(match_complete >=
+                           nrow(self$data$teams[[self$season]]) - 2) %>%
+                .$match_day %>%
+                max()
+        },
+
+        update_season = function(season) {
+            self$season <- season
+            self$initialize_season_ratings()
+            max_match_day <- self$find_max_match_day()
+            purrr::walk(seq(max_match_day), self$update_match_day)
+        },
+
+        update_all_seasons = function() {
+            self$initialize_na_ratings()
+            purrr::walk(seq(nrow(self$data)), self$update_season)
+            serie_a <- self$data
+            save(serie_a, file = "data/serie_a.rData")
+        }
+
+    )
+)
+
+
