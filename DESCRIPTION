@@ -9,7 +9,8 @@ LazyData: true
 Depends: dplyr,
     RSQLite
 Imports: purrr,
-    ggplot2
+    ggplot2,
+    stringr
 Suggests: knitr,
     rmarkdown
 VignetteBuilder: knitr

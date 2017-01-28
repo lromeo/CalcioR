@@ -1,13 +1,8 @@
-library(dplyr)
-library(stringr)
-library(purrr)
-library(RSQLite)
-
 
 load_table <- function(table_name, con) {
     "SELECT * FROM %s" %>%
         sprintf(table_name) %>%
-        dbGetQuery(con, .) %>%
+        DBI::dbGetQuery(con, .) %>%
         tbl_df()
 }
 
@@ -35,11 +30,11 @@ format_season_results <- function(season_results) {
     extract_match_day <- function(title) {
         ifelse(title == "Genoa       1-0 Fiorentina  (3.Giornata)        15.12.",
                "15^ Giornata", title) %>%
-            str_extract("^[0-9]+") %>%
+            stringr::str_extract("^[0-9]+") %>%
             as.numeric()
     }
     extract_season <- function(season) {
-        str_extract(season, "[0-9]{4}") %>%
+        stringr::str_extract(season, "[0-9]{4}") %>%
             as.numeric() - 2012
     }
     remove_extra_matches <- function(season_results) {
