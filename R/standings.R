@@ -90,6 +90,7 @@ standings <- R6::R6Class(
             purrr::walk(seq(nrow(self$data)), self$update_season)
             serie_a <- self$data
             save(serie_a, file = "data/serie_a.rData")
+            save(serie_a, file = "R/app/serie_a.rData")
         }
 
     )
