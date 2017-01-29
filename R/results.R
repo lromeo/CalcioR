@@ -65,7 +65,8 @@ results <- R6::R6Class(
                                               purrr::flatten_df() %>%
                                               distinct(p_team)))
         },
-        find_max_match_day = function(results, n_teams = 20, max_missing = 2) {
+        find_max_match_day = function(results, n_teams = 20, max_missing = 2)
+            {
             results %>%
                 mutate(match_complete =
                            purrr::map_dbl(data, ~ sum(!is.na(.x$p_score)))) %>%
@@ -82,6 +83,8 @@ results <- R6::R6Class(
                 self$remove_extra_matches() %>%
                 select(team1_key, team2_key, score1, score2, match_day, season) %>%
                 self$gather_teams() %>%
+                mutate(points = ifelse(p_score > o_score, 3,
+                                       ifelse(p_score == o_score, 1, 0))) %>%
                 tidyr::nest(-season, -match_day, .key = "data") %>%
                 tidyr::nest(-season, .key = "results") %>%
                 self$distinct_season_teams() %>%
