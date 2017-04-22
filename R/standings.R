@@ -14,10 +14,12 @@ standings <- R6::R6Class(
             by_match_day = function(match_day, data) {
                  data <- data %>%
                      select(p_team) %>%
-                     mutate(position = NA, points = NA, matches_played = NA)
+                     mutate(position = NA, points = NA, matches_played = NA,
+                            goals_for = NA, goals_against = NA, goal_diff = NA)
                  if(match_day == 0) {
                      data <- data  %>%
-                         mutate(points = 0, matches_played = 0)
+                         mutate(points = 0, matches_played = 0,
+                                goals_for = 0, goals_against = 0, goal_diff = 0)
                  }
                  return(data)
             }
@@ -59,19 +61,26 @@ standings <- R6::R6Class(
             match_day_results <- match_day_results %>%
                 mutate(
                     match_played = !is.na(points),
+                    p_score = ifelse(!match_played, 0, p_score),
+                    o_score = ifelse(!match_played, 0, o_score),
                     points = ifelse(!match_played, 0, points))
 
 
             updated_standings <- previous_standings %>%
                 left_join(match_day_results %>%
-                              select(p_team, result_points = points, match_played),
+                              select(p_team, result_points = points,
+                                     match_played, p_score, o_score),
                           by = "p_team") %>%
                 mutate(
                     points = points + result_points,
-                    matches_played = matches_played + match_played) %>%
-                arrange(desc(points)) %>%
+                    goals_for = goals_for + p_score,
+                    goals_against = goals_against + o_score,
+                    goal_diff = goals_for - goals_against,
+                    matches_played = matches_played + match_played
+                    ) %>%
+                arrange(desc(points), goal_diff) %>%
                 mutate(position = seq(nrow(.))) %>%
-                select(-result_points, -match_played)
+                select(-result_points, -match_played, -p_score, -o_score)
 
             self$data$standings[[self$season]] <- self$data$standings[[self$season]] %>%
                 mutate(data = purrr::map2(
