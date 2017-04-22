@@ -6,8 +6,8 @@ standings <- R6::R6Class(
         data = NA,
         season = NA,
 
-        initialize = function() {
-            self$data <- serie_a
+        initialize = function(data) {
+            self$data <- data
         },
 
         initialize_standings = function() {
@@ -40,7 +40,6 @@ standings <- R6::R6Class(
                 filter(match_day == get("match_day")) %>%
                 tidyr::unnest(data)
         },
-
         get_match_day_standings = function(season, match_day) {
             self$data %>%
                 filter(season == get("season")) %>%
@@ -87,13 +86,11 @@ standings <- R6::R6Class(
                     match_day, data,
                     ~ if(.x == match_day) updated_standings else .y))
         },
-
         update_season = function(season) {
             self$season <- season
             matches <- seq(self$data$match_days_complete[self$season])
             purrr::walk(matches, self$update_match_day)
         },
-
         update_all_seasons = function() {
             self$initialize_standings()
             purrr::walk(seq(nrow(self$data)), self$update_season)
@@ -101,7 +98,6 @@ standings <- R6::R6Class(
             save(serie_a, file = "data/serie_a.rData")
             save(serie_a, file = "R/app/serie_a.rData")
         }
-
     )
 )
 
