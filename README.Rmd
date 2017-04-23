@@ -26,8 +26,10 @@ The data is sourced from https://github.com/openfootball which contains the resu
     source_data <- dao$new()
     source_data$get_data()
     filter_na_cols <- function(df) df[,purrr::map_lgl(df, ~!all(is.na(.x)))]
+    filter_at_cols <- function(df) df %>% select(-one_of("created_at", "updated_at"))
     source_data$tables %>% 
         purrr::map(filter_na_cols) %>% 
+        purrr::map(filter_at_cols) %>% 
         glimpse()
 
 ```
