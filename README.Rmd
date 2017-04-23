@@ -1,0 +1,78 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE}
+devtools::load_all(".")
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "README-"
+)
+```
+
+
+This package is used to analyze Serie A soccer (Calcio) data. It creates an accessible R data-frame with information about match results, as well as team stats, Elo ratings, and overall standings. This data-frame is used to generate visualizations on a Shiny App: https://datavisr.shinyapps.io/calcior/
+
+
+
+
+#### Source Data
+The data is sourced from https://github.com/openfootball which contains the results of all Serie A match since the 2013/14 season. The data is extracted using Ruby with the sportdb gem. Running this will create a local SQLite database `sport.db` that we can use to read into R.
+
+```{r, echo=FALSE}
+    source_data <- dao$new()
+    source_data$get_data()
+    filter_na_cols <- function(df) df[,purrr::map_lgl(df, ~!all(is.na(.x)))]
+    source_data$tables %>% 
+        purrr::map(filter_na_cols) %>% 
+        glimpse()
+
+```
+
+#### Processed Data
+
+The source data is transformed from a set of relational tables to a single data-frame `serie_a` which contains list columns of data-frame to maintain the relationship of teams and matches to match_days (rounds) and season. Summary data and Elo ratings are also calculated (details below).
+
+
+```{r}
+serie_a
+```
+##### `season`:
+Serie A seasons starting from 2013/14 to 2016/17
+
+##### `match_days_complete`:
+The number of matches completed so far for each season.
+
+##### `teams`:
+The teams included for each season in Serie A. They change each season as the bottom 3 teams are sent down to Serie B and the top 3 teams from Serie B are promoted.
+
+```{r}
+serie_a %>% select(season, teams) %>% tidyr::unnest(teams) %>% glimpse()
+```
+
+
+
+##### `results`: 
+For every `season`, `match_day` and team (`p_team`, for primary team) it shows their score (`p_score`), their opponents score (`o_score`), if they were home (`p_home`) and how many `points` the `p_team` earned from the result. 
+```{r}
+serie_a %>% select(season, results) %>% tidyr::unnest(results) %>% tidyr::unnest(data) %>% glimpse()
+```
+
+
+##### `ratings`:
+For every `season`, `match_day` and team (`p_team`) it shows the teams Elo rating `r`. 
+
+The Elo calculations are mostly based on this site: http://www.eloratings.net/system.html. With `k` = 20 and a season reverting factor of 0.25. 
+```{r}
+serie_a %>% select(season, ratings) %>% tidyr::unnest(ratings) %>% tidyr::unnest(data) %>% glimpse()
+```
+
+
+##### `standings`:
+For every `season`,` match_day` and team (`p_team`) it shows the teams cumulative `points`, `goals_for`, `goals_against` and `goal_diff`, along with their `position` in comparison to the other teams.
+```{r}
+serie_a %>% select(season, standings) %>% tidyr::unnest(standings) %>% tidyr::unnest(data) %>% glimpse()
+```
